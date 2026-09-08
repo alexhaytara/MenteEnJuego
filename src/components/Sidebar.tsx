@@ -7,7 +7,7 @@ interface SidebarProps {
   onLogout: () => void
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, userEmail, onLogout }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, userEmail }) => {
   const [isOpen, setIsOpen] = useState(false)
 
   const menuItems = [

@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 
 export const Strategies: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'cancha' | 'vida'>('cancha')
-  const [selectedCategory, setSelectedCategory] = useState<string>('Todas')
 
   // Estrategias divididas por contexto
   const courtStrategies = [
@@ -82,7 +81,6 @@ export const Strategies: React.FC = () => {
         <button
           onClick={() => {
             setActiveTab('cancha')
-            setSelectedCategory('Todas')
           }}
           className={`py-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
             activeTab === 'cancha'
@@ -96,7 +94,6 @@ export const Strategies: React.FC = () => {
         <button
           onClick={() => {
             setActiveTab('vida')
-            setSelectedCategory('Todas')
           }}
           className={`py-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
             activeTab === 'vida'

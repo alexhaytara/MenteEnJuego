@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 interface ProgressProps {
   userName?: string
   userPosition?: string
+  onNavigateToStrategies?: () => void
 }
 
 interface EmotionalLog {
@@ -24,16 +25,17 @@ interface DailyStat {
 export const Progress: React.FC<ProgressProps> = ({
   userName = 'Atleta',
   userPosition = 'Punta',
+  onNavigateToStrategies,
 }) => {
   const [timeRange, setTimeRange] = useState<'semana' | 'mes'>('semana')
   const [loading, setLoading] = useState<boolean>(true)
   const [stats, setStats] = useState<DailyStat[]>([])
-  
+
   // Métricas calculadas
   const [trainCount, setTrainCount] = useState<number>(0)
   const [totalPeriodDays, setTotalPeriodDays] = useState<number>(7)
-  const [avgFocus, setAvgFocus] = useState<string>('0.0')
-  const [mentalState, setMentalState] = useState<string>('Sin datos')
+  const [avgFocus, setAvgFocus] = useState<string>('--')
+  const [mentalState, setMentalState] = useState<string>('--')
 
   const fetchProgressData = useCallback(async () => {
     setLoading(true)
@@ -44,8 +46,10 @@ export const Progress: React.FC<ProgressProps> = ({
       const daysBack = timeRange === 'semana' ? 7 : 30
       setTotalPeriodDays(daysBack)
 
+      // Definir la fecha límite de inicio (hace X días a las 00:00:00)
       const startDate = new Date()
-      startDate.setDate(startDate.getDate() - daysBack)
+      startDate.setDate(startDate.getDate() - (daysBack - 1))
+      startDate.setHours(0, 0, 0, 0)
 
       const { data, error } = await supabase
         .from('emotional_logs')
@@ -57,30 +61,31 @@ export const Progress: React.FC<ProgressProps> = ({
       if (error) throw error
 
       const logs: EmotionalLog[] = data || []
-
-      // Días para mapear en el gráfico
-      const dayLabels = timeRange === 'semana' 
-        ? ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
-        : Array.from({ length: 30 }, (_, i) => `${i + 1}`)
+      const dayLabels = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
       if (timeRange === 'semana') {
+        // Generar los últimos 7 días exactamente hasta HOY
         const weeklyMap: DailyStat[] = Array.from({ length: 7 }, (_, i) => {
           const d = new Date()
           d.setDate(d.getDate() - (6 - i))
           const dayName = dayLabels[d.getDay()]
-          
-          // Buscar registros de este día específico
+
+          // Comparar año, mes y día local para evitar fallos por zonas horarias
           const dayLogs = logs.filter((log) => {
             const logDate = new Date(log.created_at)
-            return logDate.toDateString() === d.toDateString()
+            return (
+              logDate.getFullYear() === d.getFullYear() &&
+              logDate.getMonth() === d.getMonth() &&
+              logDate.getDate() === d.getDate()
+            )
           })
 
           if (dayLogs.length > 0) {
             const lastLog = dayLogs[dayLogs.length - 1]
             return {
               day: dayName,
-              energy: lastLog.energy_level || 3,
-              focus: lastLog.focus_level || 3,
+              energy: lastLog.energy_level ?? 0,
+              focus: lastLog.focus_level ?? 0,
               trained: true,
             }
           }
@@ -90,34 +95,34 @@ export const Progress: React.FC<ProgressProps> = ({
 
         setStats(weeklyMap)
       } else {
-        // Vista mensual por semanas/grupos
         const monthlyStats = logs.map((log) => {
           const d = new Date(log.created_at)
           return {
             day: `${d.getDate()}/${d.getMonth() + 1}`,
-            energy: log.energy_level || 3,
-            focus: log.focus_level || 3,
+            energy: log.energy_level ?? 0,
+            focus: log.focus_level ?? 0,
             trained: true,
           }
         })
         setStats(monthlyStats)
       }
 
-      // Calcular Métricas
+      // Calcular Métricas solo con registros existentes
       const trainedDays = logs.length
       setTrainCount(trainedDays)
 
       if (logs.length > 0) {
-        const focusSum = logs.reduce((acc, curr) => acc + (curr.focus_level || 3), 0)
+        const focusSum = logs.reduce((acc, curr) => acc + (curr.focus_level ?? 0), 0)
         setAvgFocus((focusSum / logs.length).toFixed(1))
 
-        const avgEnergy = logs.reduce((acc, curr) => acc + (curr.energy_level || 3), 0) / logs.length
+        const avgEnergy = logs.reduce((acc, curr) => acc + (curr.energy_level ?? 0), 0) / logs.length
         if (avgEnergy >= 4) setMentalState('Óptimo')
         else if (avgEnergy >= 2.5) setMentalState('Equilibrado')
         else setMentalState('Alta Carga')
       } else {
-        setAvgFocus('0.0')
-        setMentalState('Sin Registros')
+        // Usuario sin registros
+        setAvgFocus('--')
+        setMentalState('--')
       }
     } catch (err) {
       console.error('Error cargando progreso:', err)
@@ -167,7 +172,7 @@ export const Progress: React.FC<ProgressProps> = ({
 
       {/* Tarjetas de Métricas Clave */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Metric 1 */}
+        {/* Constancia */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-2xs space-y-1">
           <span className="text-2xl">🔥</span>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -179,19 +184,19 @@ export const Progress: React.FC<ProgressProps> = ({
           <p className="text-[10px] text-purple-700 font-semibold">Registros Completados</p>
         </div>
 
-        {/* Metric 2 */}
+        {/* Enfoque Promedio */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-2xs space-y-1">
           <span className="text-2xl">🧠</span>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
             Enfoque Promedio
           </p>
           <p className="text-xl font-black text-slate-800">
-            {loading ? '...' : `${avgFocus} / 5.0`}
+            {loading ? '...' : avgFocus === '--' ? '--' : `${avgFocus} / 5.0`}
           </p>
           <p className="text-[10px] text-emerald-600 font-semibold">Nivel de Concentración</p>
         </div>
 
-        {/* Metric 3 */}
+        {/* Estado de Carga */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-2xs space-y-1">
           <span className="text-2xl">⚡</span>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -220,14 +225,14 @@ export const Progress: React.FC<ProgressProps> = ({
           </div>
         </div>
 
-        {/* Simulación visual de barras dinámicas */}
+        {/* Renderizado de barras dinámicas */}
         {loading ? (
           <div className="h-48 flex items-center justify-center text-xs text-slate-400">
             Cargando datos de Supabase...
           </div>
         ) : stats.length === 0 ? (
           <div className="h-48 flex items-center justify-center text-xs text-slate-400">
-            No hay registros para este período.
+            Sin registros almacenados para este período.
           </div>
         ) : (
           <div className="grid grid-cols-7 gap-2 pt-6 items-end h-48 border-b border-slate-100 pb-2">
@@ -237,13 +242,17 @@ export const Progress: React.FC<ProgressProps> = ({
                   {/* Barra Energía */}
                   <div
                     style={{ height: `${(st.energy / 5) * 100}%` }}
-                    className="w-3.5 bg-purple-600 rounded-t-md transition-all hover:bg-purple-700"
+                    className={`w-3.5 rounded-t-md transition-all ${
+                      st.energy > 0 ? 'bg-purple-600 hover:bg-purple-700' : 'bg-slate-100'
+                    }`}
                     title={`Energía: ${st.energy}`}
                   ></div>
                   {/* Barra Enfoque */}
                   <div
                     style={{ height: `${(st.focus / 5) * 100}%` }}
-                    className="w-3.5 bg-indigo-400 rounded-t-md transition-all hover:bg-indigo-500"
+                    className={`w-3.5 rounded-t-md transition-all ${
+                      st.focus > 0 ? 'bg-indigo-400 hover:bg-indigo-500' : 'bg-slate-100'
+                    }`}
                     title={`Enfoque: ${st.focus}`}
                   ></div>
                 </div>
@@ -251,7 +260,7 @@ export const Progress: React.FC<ProgressProps> = ({
                   {st.day}
                 </span>
                 <span className="text-[9px]">
-                  {st.trained ? '🏐' : '😴'}
+                  {st.trained ? '🏐' : '⚪'}
                 </span>
               </div>
             ))}
@@ -259,11 +268,11 @@ export const Progress: React.FC<ProgressProps> = ({
         )}
 
         <p className="text-[10px] text-slate-400 text-center italic">
-          💡 Nota: Datos actualizados en tiempo real según tus registros emocionales.
+          💡 Nota: Datos sincronizados en tiempo real con Supabase.
         </p>
       </div>
 
-      {/* Alerta de Carga Académica & Deportiva */}
+      {/* Consejo Psicológico Personalizado */}
       <div className="bg-gradient-to-r from-purple-700 to-indigo-800 rounded-3xl p-6 text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="space-y-1 text-center sm:text-left">
           <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full border border-white/20">
@@ -273,12 +282,18 @@ export const Progress: React.FC<ProgressProps> = ({
             "Prioriza la calidad de sueño antes de los partidos"
           </h4>
           <p className="text-xs text-purple-200">
-            Detectamos que tus mejores niveles de rendimiento ocurren cuando registras 4 o más puntos de energía pre-entreno.
+            {trainCount > 0 
+              ? 'Detectamos que tus mejores niveles de rendimiento ocurren cuando registras 4 o más puntos de energía pre-entreno.'
+              : 'Completa tu primer registro emocional diario para desbloquear recomendaciones personalizadas.'
+            }
           </p>
         </div>
 
-        <button className="bg-white text-purple-700 font-bold px-4 py-3 rounded-xl text-xs hover:bg-purple-50 transition-all flex-shrink-0 active:scale-95 shadow-xs cursor-pointer">
-          Ver Estrategia de Descanso ➔
+        <button 
+          onClick={onNavigateToStrategies}
+          className="bg-white text-purple-700 font-bold px-4 py-3 rounded-xl text-xs hover:bg-purple-50 transition-all flex-shrink-0 active:scale-95 shadow-xs cursor-pointer"
+        >
+          Ver Estrategia Psicológicas ➔
         </button>
       </div>
     </div>

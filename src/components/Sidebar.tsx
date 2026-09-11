@@ -42,7 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, use
     { id: 'entrenamientos', name: 'Entrenamientos', icon: '🏋️' },
     { id: 'registro', name: 'Registro emocional', icon: '💜' },
     { id: 'estrategias', name: 'Estrategias', icon: '🧠' },
-    { id: 'mensajes', name: 'Mensajes', icon: '💬' },
+    //{ id: 'mensajes', name: 'Mensajes', icon: '💬' },
     { id: 'recursos', name: 'Recursos', icon: '📚' },
     { id: 'perfil', name: 'Perfil', icon: '👤' },
   ]

@@ -171,14 +171,20 @@ function App() {
               userName={userData.name}
               userAge={userData.age}
               userPosition={userData.position}
+              onNavigateToRegister={() => setCurrentTab('registro')}
             />
           )}
+
           {currentTab === 'registro' && <EmotionalRegister />}
           {currentTab === 'entrenamientos' && <Workouts userPosition={userData.position} />}
           {currentTab === 'estrategias' && <Strategies />}
           {currentTab === 'mensajes' && <Messages userName={userData.name} userPosition={userData.position} />}
           {currentTab === 'recursos' && <Resources />}
-          {currentTab === 'progreso' && <Progress userName={userData.name} userPosition={userData.position} />}
+          {currentTab === 'progreso' && <Progress 
+            userName={userData.name} 
+            userPosition={userData.position} 
+            onNavigateToStrategies={() => setCurrentTab('estrategias')}
+          />}
           {currentTab === 'perfil' && <Profile userData={userData} />}
         </main>
       </div>

@@ -185,7 +185,7 @@ function App() {
             userPosition={userData.position} 
             onNavigateToStrategies={() => setCurrentTab('estrategias')}
           />}
-          {currentTab === 'perfil' && <Profile userData={userData} />}
+          {currentTab === 'perfil' && <Profile />}
         </main>
       </div>
     </div>

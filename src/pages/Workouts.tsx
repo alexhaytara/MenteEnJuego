@@ -12,13 +12,15 @@ const getCurrentDayOfWeek = (): number => {
 }
 
 // Tiempo total obligatorio de la sesión (90 minutos = 5400 segundos)
-// TIP PARA PRUEBAS RÁPIDAS: Puedes cambiar temporalmente 90 * 60 por 15 para probar el flujo completo en 15 segundos.
 const FULL_WORKOUT_SECONDS = 90 * 60 
 
-export const Workouts: React.FC<WorkoutsProps> = ({ userPosition = 'Punta' }) => {
+export const Workouts: React.FC<WorkoutsProps> = ({ userPosition: propUserPosition }) => {
   const [selectedDay, setSelectedDay] = useState<number>(getCurrentDayOfWeek())
   const [completedDays, setCompletedDays] = useState<number[]>([])
   const [loading, setLoading] = useState<boolean>(true)
+  
+  // Estado para la posición dinámica del usuario
+  const [userPosition, setUserPosition] = useState<string>(propUserPosition || 'Punta')
 
   // Estados del Cronómetro
   const [isActive, setIsActive] = useState<boolean>(false)
@@ -105,15 +107,29 @@ export const Workouts: React.FC<WorkoutsProps> = ({ userPosition = 'Punta' }) =>
   const isToday = selectedDay === todayOfWeek
   const isPastDay = selectedDay < todayOfWeek
 
-  // Cargar entrenamientos completados desde Supabase
+  // Cargar perfil (posición) y entrenamientos completados desde Supabase
   useEffect(() => {
-    const fetchCompletedWorkouts = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true)
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
-        const { data, error } = await supabase
+        // 1. Obtener la posición actualizada del usuario desde la tabla de perfiles (ajusta 'profiles' y 'position' según tu esquema de base de datos)
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('position')
+          .eq('id', user.id)
+          .single()
+
+        if (profileData?.position) {
+          setUserPosition(profileData.position)
+        } else if (propUserPosition) {
+          setUserPosition(propUserPosition)
+        }
+
+        // 2. Obtener entrenamientos completados
+        const { data: trainingData, error } = await supabase
           .from('training_plans')
           .select('title, status')
           .eq('user_id', user.id)
@@ -121,21 +137,21 @@ export const Workouts: React.FC<WorkoutsProps> = ({ userPosition = 'Punta' }) =>
 
         if (error) throw error
 
-        if (data) {
+        if (trainingData) {
           const completedIds = weeklyPlan
-            .filter((w) => data.some((item) => item.title === w.title))
+            .filter((w) => trainingData.some((item) => item.title === w.title))
             .map((w) => w.id)
           setCompletedDays(completedIds)
         }
       } catch (err) {
-        console.error('Error al cargar planes completados:', err)
+        console.error('Error al cargar datos del usuario:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchCompletedWorkouts()
-  }, [])
+    fetchData()
+  }, [propUserPosition])
 
   // Cronómetro
   useEffect(() => {
@@ -514,7 +530,7 @@ export const Workouts: React.FC<WorkoutsProps> = ({ userPosition = 'Punta' }) =>
                 disabled={saving}
                 className="w-1/2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md cursor-pointer disabled:opacity-50"
               >
-                {saving ? 'Guardando...' : 'Registrar en Supabase'}
+                {saving ? 'Guardando...' : 'Registrar'}
               </button>
             </div>
           </div>

@@ -70,11 +70,11 @@ export const EmotionalRegister: React.FC = () => {
           } else {
             // Fallback por nivel de energía en caso de que no coincida la etiqueta
             const moodByLevel: Record<number, MoodType> = {
-              5: 'excelente',
+              5: 'muy_bien',
               4: 'bien',
               3: 'normal',
-              2: 'cansado',
-              1: 'estresado'
+              2: 'mal',
+              1: 'muy_mal'
             }
             if (moodByLevel[lastLog.energy_level]) {
               setSelectedMood(moodByLevel[lastLog.energy_level])
@@ -115,11 +115,11 @@ export const EmotionalRegister: React.FC = () => {
   // Mapear los estados de ánimo a valores numéricos para la tabla
   const getEnergyLevel = (mood: MoodType): number => {
     switch (mood) {
-      case 'excelente': return 5
+      case 'muy_bien': return 5
       case 'bien': return 4
       case 'normal': return 3
-      case 'cansado': return 2
-      case 'estresado': return 1
+      case 'mal': return 2
+      case 'muy_mal': return 1
       default: return 3
     }
   }

@@ -104,7 +104,6 @@ export const Workouts: React.FC<WorkoutsProps> = ({ userPosition = 'Punta' }) =>
   const todayOfWeek = getCurrentDayOfWeek()
   const isToday = selectedDay === todayOfWeek
   const isPastDay = selectedDay < todayOfWeek
-  const isFutureDay = selectedDay > todayOfWeek
 
   // Cargar entrenamientos completados desde Supabase
   useEffect(() => {

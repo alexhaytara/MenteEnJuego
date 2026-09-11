@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Login } from './pages/Login'
 import { OnboardingProfile } from './pages/OnboardingProfile'
 import { WelcomeBenefits } from './pages/WelcomeBenefits'
@@ -6,7 +6,6 @@ import { Home } from './pages/Home'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { EmotionalRegister } from './pages/EmotionalRegister'
-// import { GenericPage } from './pages/GenericPage'
 import { Workouts } from './pages/Workouts'
 import { Strategies } from './pages/Strategies'
 import { Messages } from './pages/Messages'
@@ -14,6 +13,10 @@ import { Resources } from './pages/Resources'
 import { Progress } from './pages/Progress'
 import { Profile } from './pages/Profile'
 
+import { supabase } from './lib/supabase'
+import type { User } from '@supabase/supabase-js'
+
+// Unificamos el estado a 'profile_survey'
 type ScreenState = 'login' | 'profile_survey' | 'welcome' | 'dashboard'
 
 function App() {
@@ -25,50 +28,129 @@ function App() {
     position: 'Punta',
   })
   const [currentTab, setCurrentTab] = useState('inicio')
+  const [, setUser] = useState<User | null>(null)
+  const [loadingSession, setLoadingSession] = useState(true)
 
-  const handleLogout = () => {
+  // Consultar el perfil en Supabase
+  const fetchUserProfile = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('name, age, position')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (data) {
+      // Usuario con perfil completo -> Dashboard
+      setUserData({
+        name: data.name,
+        age: data.age,
+        position: data.position,
+      })
+      setScreen('dashboard')
+    } else {
+      // Usuario autenticado sin perfil guardado -> Onboarding
+      setScreen('profile_survey')
+    }
+  } catch {
+    setScreen('profile_survey')
+  } finally {
+    setLoadingSession(false)
+  }
+}
+
+  // Escuchar la sesión de autenticación
+  useEffect(() => {
+  // Verificar si hay sesión previa guardada al cargar la página
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) {
+      setUser(session.user)
+      setUserEmail(session.user.email || '')
+      fetchUserProfile(session.user.id)
+    } else {
+      setScreen('login')
+      setLoadingSession(false)
+    }
+  })
+
+  // Escuchar cambios de estado en Auth
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if (session?.user) {
+      setUser(session.user)
+      setUserEmail(session.user.email || '')
+      
+      // Evaluar la redirección solo cuando ocurre un inicio de sesión explícito
+      if (event === 'SIGNED_IN') {
+        fetchUserProfile(session.user.id)
+      }
+    } else if (event === 'SIGNED_OUT') {
+      setUser(null)
+      setUserEmail('')
+      setScreen('login')
+    }
+    setLoadingSession(false)
+  })
+
+  return () => subscription.unsubscribe()
+}, [])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
     setUserEmail('')
     setCurrentTab('inicio')
     setScreen('login')
   }
 
-  const handleLoginSuccess = (email: string, isNewUser: boolean) => {
-    setUserEmail(email)
-    setCurrentTab('inicio') 
-
-    if (isNewUser) {
-      setScreen('profile_survey')
-    } else {
-      setUserData({ name: email.split('@')[0], age: 16, position: 'Armador' })
-      setScreen('dashboard')
-    }
-  }
-
-  const handleProfileComplete = (data: { name: string; age: number; position: string }) => {
+  const handleProfileComplete = async (data: { name: string; age: number; position: string }) => {
     setUserData(data)
+    
+    // Guardar los datos en Supabase
+    const { data: authData } = await supabase.auth.getUser()
+    if (authData.user) {
+      await supabase.from('profiles').upsert({
+        id: authData.user.id,
+        name: data.name,
+        age: data.age,
+        position: data.position,
+        updated_at: new Date().toISOString(),
+      })
+    }
+
     setScreen('welcome')
   }
 
   const handleFinishWelcome = () => {
-    setCurrentTab('inicio') 
+    setCurrentTab('inicio')
     setScreen('dashboard')
   }
 
-  if (screen === 'login') {
-    return <Login onSuccess={handleLoginSuccess} />
+  // 1. Pantalla de carga mientras se verifica la sesión inicial
+  if (loadingSession) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white font-bold">
+        Cargando Mente en Juego...
+      </div>
+    )
   }
 
+  // 2. Pantalla de Login
+  if (screen === 'login') {
+    return <Login onLoginSuccess={() => {}} />
+  }
+
+  // 3. Pantalla de Onboarding Profile
   if (screen === 'profile_survey') {
     return <OnboardingProfile onComplete={handleProfileComplete} />
   }
 
+  // 4. Pantalla de Bienvenida / Beneficios
   if (screen === 'welcome') {
     return <WelcomeBenefits userName={userData.name} onNext={handleFinishWelcome} />
   }
 
+  // 5. Pantalla Principal (Dashboard)
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col md:flex-row antialiased">
-      {/* Sidebar con botón de cerrar sesión en la esquina inferior */}
       <Sidebar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
@@ -76,7 +158,6 @@ function App() {
         onLogout={handleLogout}
       />
 
-      {/* Área Principal con Header en la parte superior derecha */}
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
         <Header
           userName={userData.name}
@@ -99,20 +180,10 @@ function App() {
           {currentTab === 'recursos' && <Resources />}
           {currentTab === 'progreso' && <Progress userName={userData.name} userPosition={userData.position} />}
           {currentTab === 'perfil' && <Profile userData={userData} />}
-          
-          {/*
-          {currentTab !== 'inicio' &&
-            currentTab !== 'registro' &&
-            currentTab !== 'estrategias' &&
-            currentTab !== 'mensajes' &&
-            currentTab !== 'recursos' &&
-            currentTab !== 'progreso' &&
-            currentTab !== 'entrenamientos' && <GenericPage title={currentTab} />}
-          */}
         </main>
       </div>
     </div>
   )
 }
 
-export default App  
+export default App

@@ -2,6 +2,19 @@ import React, { useState, useEffect } from 'react'
 import { MOOD_RESPONSES, FEELING_TAGS, type MoodType } from '../data/emotionsData'
 import yogaIcon from '../assets/yoga-icon.png'
 
+// Importamos la conexión de Supabase
+import { supabase } from '../lib/supabase'
+
+// Definición de etiquetas opuestas que no pueden coexistir
+const OPPOSITE_TAGS: Record<string, string> = {
+  'Energía': 'Cansancio',
+  'Cansancio': 'Energía',
+  'Confianza': 'Frustración',
+  'Frustración': 'Confianza',
+  'Estrés': 'Satisfacción',
+  'Satisfacción': 'Estrés'
+}
+
 export const EmotionalRegister: React.FC = () => {
   const [step, setStep] = useState<number>(1)
   const [selectedMood, setSelectedMood] = useState<MoodType>('bien')
@@ -9,10 +22,144 @@ export const EmotionalRegister: React.FC = () => {
   const [note, setNote] = useState<string>('')
   const [progress, setProgress] = useState<number>(0)
 
+  // Estados de carga y error para la base de datos
+  const [isSaving, setIsSaving] = useState<boolean>(false)
+  const [isLoadingCheck, setIsLoadingCheck] = useState<boolean>(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [hasRegisteredToday, setHasRegisteredToday] = useState<boolean>(false)
+
+  // Consultar si ya existe un registro creado hoy y cargar sus datos exactos
+  useEffect(() => {
+    const checkIfRegisteredToday = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          setIsLoadingCheck(false)
+          return
+        }
+
+        const startOfDay = new Date()
+        startOfDay.setHours(0, 0, 0, 0)
+        
+        const endOfDay = new Date()
+        endOfDay.setHours(23, 59, 59, 999)
+
+        // Traemos también dominant_emotion y notes
+        const { data, error } = await supabase
+          .from('emotional_logs')
+          .select('energy_level, dominant_emotion, notes, created_at')
+          .eq('user_id', user.id)
+          .gte('created_at', startOfDay.toISOString())
+          .lte('created_at', endOfDay.toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
+
+        if (error) throw error
+
+        if (data && data.length > 0) {
+          setHasRegisteredToday(true)
+          const lastLog = data[0]
+
+          // 1. Buscar la clave de MoodType basada en la etiqueta o nivel guardado
+          const foundMoodKey = (Object.keys(MOOD_RESPONSES) as MoodType[]).find(
+            (key) => MOOD_RESPONSES[key].label.toLowerCase() === lastLog.dominant_emotion?.toLowerCase()
+          )
+
+          if (foundMoodKey) {
+            setSelectedMood(foundMoodKey)
+          } else {
+            // Fallback por nivel de energía en caso de que no coincida la etiqueta
+            const moodByLevel: Record<number, MoodType> = {
+              5: 'excelente',
+              4: 'bien',
+              3: 'normal',
+              2: 'cansado',
+              1: 'estresado'
+            }
+            if (moodByLevel[lastLog.energy_level]) {
+              setSelectedMood(moodByLevel[lastLog.energy_level])
+            }
+          }
+
+          // 2. Recuperar la nota escrita si existía
+          if (lastLog.notes) {
+            setNote(lastLog.notes)
+          }
+
+          // Ir directo al Step 4 con los datos recuperados
+          setStep(4)
+        }
+      } catch (err) {
+        console.error('Error al comprobar registro diario:', err)
+      } finally {
+        setIsLoadingCheck(false)
+      }
+    }
+
+    checkIfRegisteredToday()
+  }, [])
+
+  // Deseleccionar opuestos automáticamente
   const toggleTag = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    )
+    setSelectedTags((prev) => {
+      if (prev.includes(tag)) {
+        return prev.filter((t) => t !== tag)
+      } else {
+        const opposite = OPPOSITE_TAGS[tag]
+        const filtered = opposite ? prev.filter((t) => t !== opposite) : prev
+        return [...filtered, tag]
+      }
+    })
+  }
+
+  // Mapear los estados de ánimo a valores numéricos para la tabla
+  const getEnergyLevel = (mood: MoodType): number => {
+    switch (mood) {
+      case 'excelente': return 5
+      case 'bien': return 4
+      case 'normal': return 3
+      case 'cansado': return 2
+      case 'estresado': return 1
+      default: return 3
+    }
+  }
+
+  const handleSaveToSupabase = async () => {
+    setIsSaving(true)
+    setErrorMessage(null)
+
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+      if (userError || !user) {
+        throw new Error('Debes iniciar sesión para registrar tu estado emocional.')
+      }
+
+      const { error } = await supabase.from('emotional_logs').insert([
+        {
+          user_id: user.id,
+          energy_level: getEnergyLevel(selectedMood),
+          focus_level: selectedTags.length > 0 ? 4 : 3,
+          dominant_emotion: MOOD_RESPONSES[selectedMood].label,
+          notes: selectedTags.length > 0 
+            ? `Etiquetas: ${selectedTags.join(', ')}. ${note}`.trim()
+            : note.trim() || null,
+        },
+      ])
+
+      if (error) throw error
+
+      setHasRegisteredToday(true)
+      setStep(3)
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMessage(err.message)
+      } else {
+        setErrorMessage('Ocurrió un error al guardar tu registro.')
+      }
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   useEffect(() => {
@@ -34,11 +181,19 @@ export const EmotionalRegister: React.FC = () => {
 
   const currentResponse = MOOD_RESPONSES[selectedMood]
 
+  if (isLoadingCheck) {
+    return (
+      <div className="w-full max-w-xl mx-auto py-12 text-center text-slate-500 text-xs font-medium">
+        Cargando estado emocional...
+      </div>
+    )
+  }
+
   return (
     <div className="w-full max-w-5xl mx-auto py-4 md:py-6 space-y-8 md:space-y-12">
       <div className="w-full max-w-xl mx-auto">
         {step === 1 && (
-          <div className="bg-white rounded-2xl p-6 md:p-8 border border-slate-200 shadow-sm text-center flex flex-col items-center">
+          <div className="bg-white rounded-2xl p-6 md:p-8 border border-slate-200 shadow-xs text-center flex flex-col items-center">
             <div className="w-24 h-24 mb-4 flex items-center justify-center">
               <img 
                 src={yogaIcon} 
@@ -52,7 +207,7 @@ export const EmotionalRegister: React.FC = () => {
             </p>
             <button
               onClick={() => setStep(2)}
-              className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-6 py-2.5 rounded-xl transition-all shadow-md"
+              className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-6 py-2.5 rounded-xl transition-all shadow-md cursor-pointer"
             >
               Registrar mi estado emocional
             </button>
@@ -60,11 +215,17 @@ export const EmotionalRegister: React.FC = () => {
         )}
 
         {step === 2 && (
-          <div className="bg-white rounded-2xl p-5 md:p-6 border border-slate-200 shadow-sm space-y-5">
+          <div className="bg-white rounded-2xl p-5 md:p-6 border border-slate-200 shadow-xs space-y-5">
             <div className="text-center">
               <h2 className="text-lg font-bold text-slate-800">¿Cómo te sientes hoy?</h2>
               <p className="text-xs text-slate-400">Selecciona tu estado de ánimo</p>
             </div>
+
+            {errorMessage && (
+              <div className="bg-red-50 text-red-600 border border-red-200 p-2.5 rounded-xl text-xs text-center">
+                {errorMessage}
+              </div>
+            )}
 
             <div className="grid grid-cols-5 gap-1.5 md:gap-2">
               {(Object.keys(MOOD_RESPONSES) as MoodType[]).map((key) => {
@@ -73,8 +234,9 @@ export const EmotionalRegister: React.FC = () => {
                 return (
                   <button
                     key={key}
+                    type="button"
                     onClick={() => setSelectedMood(key)}
-                    className={`flex flex-col items-center p-2 rounded-xl border-2 transition-all ${item.bgColor} ${
+                    className={`flex flex-col items-center p-2 rounded-xl border-2 transition-all cursor-pointer ${item.bgColor} ${
                       isSelected
                         ? `${item.borderColor} scale-105 shadow-md ring-2 ring-purple-400/50`
                         : 'border-transparent opacity-80 hover:opacity-100'
@@ -97,8 +259,9 @@ export const EmotionalRegister: React.FC = () => {
                   return (
                     <button
                       key={tag}
+                      type="button"
                       onClick={() => toggleTag(tag)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                         active
                           ? 'bg-purple-600 text-white border-purple-600'
                           : 'bg-slate-50 text-slate-600 border-slate-200'
@@ -125,16 +288,18 @@ export const EmotionalRegister: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setStep(3)}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold py-2.5 rounded-xl shadow-md"
+              type="button"
+              disabled={isSaving}
+              onClick={handleSaveToSupabase}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold py-2.5 rounded-xl shadow-md cursor-pointer disabled:opacity-50"
             >
-              Guardar
+              {isSaving ? 'Guardando en la base de datos...' : 'Guardar'}
             </button>
           </div>
         )}
 
         {step === 3 && (
-          <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm text-center flex flex-col items-center space-y-4">
+          <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-xs text-center flex flex-col items-center space-y-4">
             <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center text-3xl animate-bounce">
               💜
             </div>
@@ -157,7 +322,7 @@ export const EmotionalRegister: React.FC = () => {
         )}
 
         {step === 4 && (
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
             <div className="text-center">
               <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${currentResponse.badgeColor}`}>
                 Basado en cómo te sientes hoy
@@ -174,7 +339,7 @@ export const EmotionalRegister: React.FC = () => {
             </div>
 
             <div className="p-3.5 rounded-xl bg-purple-50 border border-purple-100 flex items-center gap-3">
-              <div className="text-xl p-1.5 bg-white rounded-lg shadow-sm">
+              <div className="text-xl p-1.5 bg-white rounded-lg shadow-xs">
                 {currentResponse.suggestionIcon}
               </div>
               <div>
@@ -183,12 +348,24 @@ export const EmotionalRegister: React.FC = () => {
               </div>
             </div>
 
-            <button
-              onClick={() => setStep(1)}
-              className="w-full border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold py-2.5 rounded-xl transition-colors"
-            >
-              Nuevo registro
-            </button>
+            {hasRegisteredToday ? (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                <p className="text-xs text-slate-500 font-medium">
+                  Ya realizaste tu registro emocional de hoy. Podrás registrarte de nuevo mañana.
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setSelectedTags([])
+                  setNote('')
+                  setStep(1)
+                }}
+                className="w-full border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold py-2.5 rounded-xl transition-colors cursor-pointer"
+              >
+                Nuevo registro
+              </button>
+            )}
           </div>
         )}
       </div>

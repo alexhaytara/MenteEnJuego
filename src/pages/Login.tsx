@@ -1,20 +1,55 @@
 import React, { useState } from 'react'
+import { supabase } from '../lib/supabase'
 import bgLogin from '../assets/bg-login.jpg'
 
 interface LoginProps {
-  onSuccess: (email: string, isNewUser: boolean) => void
+  onLoginSuccess: () => void
 }
 
-export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
-  // Ahora inicia en 'false' para mostrar primero "Iniciar sesión"
+export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [isRegistering, setIsRegistering] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (email.trim() && password.trim()) {
-      onSuccess(email, isRegistering)
+    setLoading(true)
+    setErrorMessage(null)
+
+    try {
+      if (isRegistering) {
+        // Registro en Supabase Auth
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        })
+
+        if (error) throw error
+
+        if (data.user) {
+          onLoginSuccess()
+        }
+      } else {
+        // Inicio de sesión en Supabase Auth
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+
+        if (error) throw error
+
+        onLoginSuccess()
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMessage(err.message)
+      } else {
+        setErrorMessage('Ocurrió un error inesperado.')
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -42,10 +77,16 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
 
           <div className="pt-2">
             <p className="italic text-purple-700 text-sm font-serif bg-purple-50/80 py-1.5 px-3 rounded-lg border border-purple-100 shadow-xs">
-              "{isRegistering ? 'Cada gran logro comienza con un paso' : 'Cada gran logro comienza con un paso'}"
+              "Cada gran logro comienza con un paso"
             </p>
           </div>
         </div>
+
+        {errorMessage && (
+          <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs text-center font-medium">
+            {errorMessage}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -78,9 +119,14 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
 
           <button
             type="submit"
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-all text-xs shadow-md active:scale-[0.98]"
+            disabled={loading}
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-all text-xs shadow-md active:scale-[0.98] disabled:opacity-50"
           >
-            {isRegistering ? 'Registrarme' : 'Iniciar sesión'}
+            {loading
+              ? 'Cargando...'
+              : isRegistering
+              ? 'Registrarme'
+              : 'Iniciar sesión'}
           </button>
         </form>
 
@@ -88,7 +134,10 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
           <p className="text-xs text-slate-600">
             {isRegistering ? '¿Ya tienes una cuenta?' : '¿Aún no tienes cuenta?'}
             <button
-              onClick={() => setIsRegistering(!isRegistering)}
+              onClick={() => {
+                setIsRegistering(!isRegistering)
+                setErrorMessage(null)
+              }}
               className="ml-1.5 text-purple-700 font-bold hover:underline"
             >
               {isRegistering ? 'Inicia sesión aquí' : 'Regístrate aquí'}

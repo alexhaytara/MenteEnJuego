@@ -8,6 +8,9 @@ import liberoImg from '../assets/libero.png'
 import armadorImg from '../assets/armador.png'
 import opuestoImg from '../assets/opuesto.png'
 
+// Importación de Supabase
+import { supabase } from '../lib/supabase'
+
 interface OnboardingProfileProps {
   onComplete: (data: { name: string; age: number; position: string }) => void
 }
@@ -17,6 +20,10 @@ export const OnboardingProfile: React.FC<OnboardingProfileProps> = ({ onComplete
   const [age, setAge] = useState(15)
   const [selectedPosition, setSelectedPosition] = useState('Punta')
   const [isRolling, setIsRolling] = useState(false)
+
+  // Estados de carga y error para Supabase
+  const [isSaving, setIsSaving] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleAgeChange = (delta: number) => {
     setIsRolling(true)
@@ -33,10 +40,44 @@ export const OnboardingProfile: React.FC<OnboardingProfileProps> = ({ onComplete
     { id: 'Armador', name: 'Armador / Colocador', image: armadorImg, desc: 'Estrategia y distribución' },
   ]
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (name.trim() && selectedPosition) {
-      onComplete({ name, age, position: selectedPosition })
+    if (!name.trim() || !selectedPosition) return
+
+    setIsSaving(true)
+    setErrorMessage(null)
+
+    try {
+      // 1. Obtener usuario autenticado
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+      if (userError || !user) {
+        throw new Error('Debes haber iniciado sesión para completar tu perfil.')
+      }
+
+      // 2. Insertar o actualizar el perfil en la tabla profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          name: name.trim(),
+          age: age,
+          position: selectedPosition,
+          updated_at: new Date().toISOString(),
+        })
+
+      if (profileError) throw profileError
+
+      // 3. Ejecutar callback para redirigir
+      onComplete({ name: name.trim(), age, position: selectedPosition })
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMessage(err.message)
+      } else {
+        setErrorMessage('Ocurrió un error al guardar tu perfil.')
+      }
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -57,6 +98,12 @@ export const OnboardingProfile: React.FC<OnboardingProfileProps> = ({ onComplete
           <h2 className="text-2xl font-black text-slate-800">¡Perfil del Atleta!</h2>
           <p className="text-xs text-slate-500 mt-0.5">Completa tus datos para personalizar tu experiencia en la cancha</p>
         </div>
+
+        {errorMessage && (
+          <div className="bg-red-50 text-red-600 border border-red-200 p-3 rounded-xl text-xs font-medium text-center">
+            {errorMessage}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Campo Nombre */}
@@ -89,8 +136,8 @@ export const OnboardingProfile: React.FC<OnboardingProfileProps> = ({ onComplete
               <button
                 type="button"
                 onClick={() => handleAgeChange(-1)}
-                disabled={age <= 13}
-                className="w-10 h-10 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 rounded-xl font-bold text-slate-700 shadow-xs text-lg active:scale-95 transition-all"
+                disabled={age <= 13 || isSaving}
+                className="w-10 h-10 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 rounded-xl font-bold text-slate-700 shadow-xs text-lg active:scale-95 transition-all cursor-pointer"
               >
                 -
               </button>
@@ -107,8 +154,8 @@ export const OnboardingProfile: React.FC<OnboardingProfileProps> = ({ onComplete
               <button
                 type="button"
                 onClick={() => handleAgeChange(1)}
-                disabled={age >= 18}
-                className="w-10 h-10 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 rounded-xl font-bold text-slate-700 shadow-xs text-lg active:scale-95 transition-all"
+                disabled={age >= 18 || isSaving}
+                className="w-10 h-10 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 rounded-xl font-bold text-slate-700 shadow-xs text-lg active:scale-95 transition-all cursor-pointer"
               >
                 +
               </button>
@@ -136,7 +183,7 @@ export const OnboardingProfile: React.FC<OnboardingProfileProps> = ({ onComplete
                     key={pos.id}
                     type="button"
                     onClick={() => setSelectedPosition(pos.id)}
-                    className={`p-3 rounded-2xl border-2 flex flex-col items-center text-center transition-all ${
+                    className={`p-3 rounded-2xl border-2 flex flex-col items-center text-center transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-purple-600 text-white border-purple-600 shadow-md scale-105'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-purple-50'
@@ -167,7 +214,7 @@ export const OnboardingProfile: React.FC<OnboardingProfileProps> = ({ onComplete
                     key={pos.id}
                     type="button"
                     onClick={() => setSelectedPosition(pos.id)}
-                    className={`p-3 rounded-2xl border-2 flex flex-col items-center text-center transition-all ${
+                    className={`p-3 rounded-2xl border-2 flex flex-col items-center text-center transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-purple-600 text-white border-purple-600 shadow-md scale-105'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-purple-50'
@@ -192,9 +239,10 @@ export const OnboardingProfile: React.FC<OnboardingProfileProps> = ({ onComplete
 
           <button
             type="submit"
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-all text-xs shadow-md"
+            disabled={isSaving || !name.trim()}
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl transition-all text-xs shadow-md cursor-pointer disabled:opacity-50"
           >
-            Continuar
+            {isSaving ? 'Guardando perfil...' : 'Continuar'}
           </button>
         </form>
       </div>

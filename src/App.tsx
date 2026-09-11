@@ -34,7 +34,7 @@ function App() {
   // Consultar el perfil en Supabase
   const fetchUserProfile = async (userId: string) => {
   try {
-    const { data, error } = await supabase
+    const { data, error:_error } = await supabase
       .from('profiles')
       .select('name, age, position')
       .eq('id', userId)

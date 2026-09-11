@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 
 interface SidebarProps {
   currentTab: string
@@ -9,6 +10,31 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, userEmail }) => {
   const [isOpen, setIsOpen] = useState(false)
+  const [displayName, setDisplayName] = useState<string>('')
+
+  // Cargar el nombre real del usuario desde la columna 'name' de profiles
+  useEffect(() => {
+    const fetchProfileName = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', user.id)
+          .single()
+
+        if (profile?.name) {
+          setDisplayName(profile.name)
+        }
+      } catch (err) {
+        console.log('No se pudo cargar el nombre del perfil, usando respaldo.')
+      }
+    }
+
+    fetchProfileName()
+  }, [])
 
   const menuItems = [
     { id: 'inicio', name: 'Inicio', icon: '🏠' },
@@ -21,11 +47,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, use
     { id: 'perfil', name: 'Perfil', icon: '👤' },
   ]
 
-  const username = userEmail.split('@')[0] || 'Usuario'
+  const fallbackName = userEmail ? userEmail.split('@')[0] : 'Atleta'
+  const rawName = displayName || fallbackName
+  const finalName = rawName.charAt(0).toUpperCase() + rawName.slice(1)
+  const userInitial = finalName.charAt(0).toUpperCase()
 
   return (
     <>
-      {/* Botón flotante para abrir menú en móviles */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="md:hidden fixed top-4 left-4 z-50 bg-[#C28AFF] text-slate-900 p-2.5 rounded-xl shadow-md border border-purple-300 font-bold text-lg"
@@ -33,7 +61,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, use
         {isOpen ? '✕' : '☰'}
       </button>
 
-      {/* Fondo oscuro traslúcido para móviles al abrir menú */}
       {isOpen && (
         <div
           onClick={() => setIsOpen(false)}
@@ -83,11 +110,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, use
         </div>
 
         <div className="border-t border-purple-400/30 pt-3 flex items-center justify-between px-2">
-          <div className="flex items-center gap-2 overflow-hidden">
+          <div className="flex items-center gap-2.5 overflow-hidden">
             <div className="w-8 h-8 bg-white text-slate-900 rounded-full flex items-center justify-center text-xs font-black uppercase flex-shrink-0 shadow-sm">
-              {username.charAt(0)}
+              {userInitial}
             </div>
-            <span className="text-xs font-bold text-slate-900 truncate">Hola, {username}</span>
+            <div className="overflow-hidden">
+              <p className="text-[10px] font-semibold text-slate-800 leading-none">Hola,</p>
+              <span className="text-xs font-extrabold text-slate-900 truncate block mt-0.5">
+                {finalName}
+              </span>
+            </div>
           </div>
         </div>
       </aside>

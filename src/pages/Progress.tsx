@@ -40,7 +40,9 @@ export const Progress: React.FC<ProgressProps> = ({
   const fetchProgressData = useCallback(async () => {
     setLoading(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (!user) return
 
       const daysBack = timeRange === 'semana' ? 7 : 30
@@ -135,6 +137,53 @@ export const Progress: React.FC<ProgressProps> = ({
     fetchProgressData()
   }, [fetchProgressData])
 
+  // Escuchar actualizaciones en tiempo real de logs emocionales
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
+    const setupRealtime = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+
+      channel = supabase
+        .channel(`realtime-progress-${user.id}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'emotional_logs',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            fetchProgressData()
+          }
+        )
+        .subscribe()
+    }
+
+    setupRealtime()
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel)
+      }
+    }
+  }, [fetchProgressData])
+
+  // 1. Pantalla de carga unificada
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] w-full gap-3">
+        <div className="w-10 h-10 border-4 border-purple-200 border-t-purple-700 rounded-full animate-spin"></div>
+        <p className="text-xs font-semibold text-slate-500">Cargando tus métricas de progreso...</p>
+      </div>
+    )
+  }
+
+  // 2. Renderizado principal una vez cargados los datos
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-8">
       {/* Encabezado y Filtro */}
@@ -179,7 +228,7 @@ export const Progress: React.FC<ProgressProps> = ({
             Constancia
           </p>
           <p className="text-xl font-black text-slate-800">
-            {loading ? '...' : `${trainCount} / ${totalPeriodDays} Días`}
+            {`${trainCount} / ${totalPeriodDays} Días`}
           </p>
           <p className="text-[10px] text-purple-700 font-semibold">Registros Completados</p>
         </div>
@@ -191,7 +240,7 @@ export const Progress: React.FC<ProgressProps> = ({
             Enfoque Promedio
           </p>
           <p className="text-xl font-black text-slate-800">
-            {loading ? '...' : avgFocus === '--' ? '--' : `${avgFocus} / 5.0`}
+            {avgFocus === '--' ? '--' : `${avgFocus} / 5.0`}
           </p>
           <p className="text-[10px] text-emerald-600 font-semibold">Nivel de Concentración</p>
         </div>
@@ -202,9 +251,7 @@ export const Progress: React.FC<ProgressProps> = ({
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
             Estado de Carga
           </p>
-          <p className="text-xl font-black text-slate-800">
-            {loading ? '...' : mentalState}
-          </p>
+          <p className="text-xl font-black text-slate-800">{mentalState}</p>
           <p className="text-[10px] text-amber-600 font-semibold">Balance de Energía</p>
         </div>
       </div>
@@ -226,11 +273,7 @@ export const Progress: React.FC<ProgressProps> = ({
         </div>
 
         {/* Renderizado de barras dinámicas */}
-        {loading ? (
-          <div className="h-48 flex items-center justify-center text-xs text-slate-400">
-            Cargando datos de Supabase...
-          </div>
-        ) : stats.length === 0 ? (
+        {stats.length === 0 ? (
           <div className="h-48 flex items-center justify-center text-xs text-slate-400">
             Sin registros almacenados para este período.
           </div>
@@ -259,9 +302,7 @@ export const Progress: React.FC<ProgressProps> = ({
                 <span className="text-[10px] font-bold text-slate-500 mt-2 truncate w-full text-center">
                   {st.day}
                 </span>
-                <span className="text-[9px]">
-                  {st.trained ? '🏐' : '⚪'}
-                </span>
+                <span className="text-[9px]">{st.trained ? '🏐' : '⚪'}</span>
               </div>
             ))}
           </div>
@@ -282,18 +323,17 @@ export const Progress: React.FC<ProgressProps> = ({
             "Prioriza la calidad de sueño antes de los partidos"
           </h4>
           <p className="text-xs text-purple-200">
-            {trainCount > 0 
+            {trainCount > 0
               ? 'Detectamos que tus mejores niveles de rendimiento ocurren cuando registras 4 o más puntos de energía pre-entreno.'
-              : 'Completa tu primer registro emocional diario para desbloquear recomendaciones personalizadas.'
-            }
+              : 'Completa tu primer registro emocional diario para desbloquear recomendaciones personalizadas.'}
           </p>
         </div>
 
-        <button 
+        <button
           onClick={onNavigateToStrategies}
           className="bg-white text-purple-700 font-bold px-4 py-3 rounded-xl text-xs hover:bg-purple-50 transition-all flex-shrink-0 active:scale-95 shadow-xs cursor-pointer"
         >
-          Ver Estrategia Psicológicas ➔
+          Ver Estrategias Psicológicas ➔
         </button>
       </div>
     </div>

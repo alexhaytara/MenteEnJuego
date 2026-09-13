@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { MOOD_RESPONSES, FEELING_TAGS, type MoodType } from '../data/emotionsData'
+import { MindsetButton } from '../components/MindsetButton'
 import yogaIcon from '../assets/yoga-icon.png'
 
 // Importamos la conexión de Supabase
@@ -356,13 +357,7 @@ export const EmotionalRegister: React.FC<EmotionalRegisterProps> = ({ onNavigate
               <p className="text-xs font-semibold leading-relaxed">
                 Notamos que la presión o la frustración te están pesando. No dejes que un mal punto arruine tu juego. ¡Lee la guía mental para aprender a superarlo!
               </p>
-              <button
-                type="button"
-                onClick={onNavigateToMindset}
-                className="w-full bg-white text-purple-900 hover:bg-purple-50 text-xs font-bold py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
-              >
-                🧠 Ir a Mindset Guide ahora mismo
-              </button>
+              <MindsetButton onNavigate={onNavigateToMindset} />
             </div>
           )}
 

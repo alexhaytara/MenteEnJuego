@@ -172,6 +172,7 @@ function App() {
               userAge={userData.age}
               userPosition={userData.position}
               onNavigateToRegister={() => setCurrentTab('registro')}
+              onNavigateToMindset={() => setCurrentTab('guia')}
             />
           )}
 
@@ -190,8 +191,11 @@ function App() {
             userName={userData.name} 
             userPosition={userData.position} 
             onNavigateToStrategies={() => setCurrentTab('estrategias')}
+            onNavigateToMindset={() => setCurrentTab('guia')}
           />}
-          {currentTab === 'perfil' && <Profile />}
+          {currentTab === 'perfil' && <Profile 
+            onNavigateToMindset={() => setCurrentTab('guia')}
+          />}
         </main>
       </div>
     </div>

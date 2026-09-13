@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { MindsetButton } from '../components/MindsetButton'
 
 interface ProgressProps {
   userName?: string
   userPosition?: string
   onNavigateToStrategies?: () => void
+  onNavigateToMindset: () => void
 }
 
 interface EmotionalLog {
@@ -26,6 +28,7 @@ export const Progress: React.FC<ProgressProps> = ({
   userName = 'Atleta',
   userPosition = 'Punta',
   onNavigateToStrategies,
+  onNavigateToMindset
 }) => {
   const [timeRange, setTimeRange] = useState<'semana' | 'mes'>('semana')
   const [loading, setLoading] = useState<boolean>(true)
@@ -220,41 +223,43 @@ export const Progress: React.FC<ProgressProps> = ({
       </div>
 
       {/* Tarjetas de Métricas Clave */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Constancia */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-2xs space-y-1">
-          <span className="text-2xl">🔥</span>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Constancia
-          </p>
-          <p className="text-xl font-black text-slate-800">
-            {`${trainCount} / ${totalPeriodDays} Días`}
-          </p>
-          <p className="text-[10px] text-purple-700 font-semibold">Registros Completados</p>
-        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Constancia */}
+          <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-2xs space-y-1">
+            <span className="text-2xl">🔥</span>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Constancia
+            </p>
+            <p className="text-xl font-black text-slate-800">
+              {`${trainCount} / ${totalPeriodDays} Días`}
+            </p>
+            <p className="text-[10px] text-purple-700 font-semibold">Registros Completados</p>
+          </div>
 
-        {/* Enfoque Promedio */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-2xs space-y-1">
-          <span className="text-2xl">🧠</span>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Enfoque Promedio
-          </p>
-          <p className="text-xl font-black text-slate-800">
-            {avgFocus === '--' ? '--' : `${avgFocus} / 5.0`}
-          </p>
-          <p className="text-[10px] text-emerald-600 font-semibold">Nivel de Concentración</p>
-        </div>
+          {/* Enfoque Promedio */}
+          <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-2xs space-y-1">
+            <span className="text-2xl">🧠</span>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Enfoque Promedio
+            </p>
+            <p className="text-xl font-black text-slate-800">
+              {avgFocus === '--' ? '--' : `${avgFocus} / 5.0`}
+            </p>
+            <p className="text-[10px] text-emerald-600 font-semibold">Nivel de Concentración</p>
+          </div>
 
-        {/* Estado de Carga */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-2xs space-y-1">
-          <span className="text-2xl">⚡</span>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Estado de Carga
-          </p>
-          <p className="text-xl font-black text-slate-800">{mentalState}</p>
-          <p className="text-[10px] text-amber-600 font-semibold">Balance de Energía</p>
+          {/* Estado de Carga (CON EL BOTÓN INTEGRADO ADENTRO) */}
+          <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-2xs flex flex-col justify-between">
+            <div className="space-y-1">
+              <span className="text-2xl">⚡</span>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Estado de Carga
+              </p>
+              <p className="text-xl font-black text-slate-800">{mentalState}</p>
+              <p className="text-[10px] text-amber-600 font-semibold">Balance de Energía</p>
+            </div>
+          </div>
         </div>
-      </div>
 
       {/* Gráfico de Barras Emocional/Físico */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
@@ -329,12 +334,20 @@ export const Progress: React.FC<ProgressProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={onNavigateToStrategies}
-          className="bg-white text-purple-700 font-bold px-4 py-3 rounded-xl text-xs hover:bg-purple-50 transition-all flex-shrink-0 active:scale-95 shadow-xs cursor-pointer"
-        >
-          Ver Estrategias Psicológicas ➔
-        </button>
+        <div className="flex flex-col gap-2 w-full">
+          {/* Botón de Estrategias */}
+          <button
+            type="button"
+            onClick={onNavigateToStrategies}
+            className="w-full bg-white text-purple-700 font-bold px-4 py-3 rounded-xl text-xs hover:bg-purple-50 transition-all active:scale-95 shadow-xs cursor-pointer flex items-center justify-between"
+          >
+            <span>Ver Estrategias Psicológicas</span>
+            <span>➔</span>
+          </button>
+
+          {/* Tu componente dinámico de MindsetButton */}
+          <MindsetButton onNavigate={onNavigateToMindset} />
+        </div>
       </div>
     </div>
   )

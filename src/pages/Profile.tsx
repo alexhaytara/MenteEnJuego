@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { MindsetButton } from '../components/MindsetButton'
 
 interface ProfileData {
   name: string
@@ -9,6 +10,11 @@ interface ProfileData {
   season_goal: string
   daily_reminder: boolean
   library_notifications: boolean
+}
+
+// Interfaz para recibir la función de navegación como prop
+interface ProfileProps {
+  onNavigateToMindset: () => void
 }
 
 // Función auxiliar para formatear Nombres (Primera letra de cada palabra en mayúscula)
@@ -21,7 +27,7 @@ const capitalizeWords = (str: string): string => {
     .join(' ')
 }
 
-export const Profile: React.FC = () => {
+export const Profile: React.FC<ProfileProps> = ({ onNavigateToMindset }) => {
   const [loading, setLoading] = useState<boolean>(true)
   const [saving, setSaving] = useState<boolean>(false)
   const [isEditing, setIsEditing] = useState<boolean>(false)
@@ -324,7 +330,6 @@ export const Profile: React.FC = () => {
           <textarea
             value={isEditing ? editForm.season_goal : profile.season_goal}
             onChange={(e) => {
-              // Si el usuario edita el texto, rehabilitamos la posibilidad de guardar
               setGoalSavedToday(false)
               if (isEditing) {
                 setEditForm({ ...editForm, season_goal: e.target.value })
@@ -355,7 +360,7 @@ export const Profile: React.FC = () => {
           )}
         </div>
 
-        {/* Insignias Dinámicas */}
+        {/* Insignias Dinámicas con el Botón Integrado Abajo */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-2xs space-y-3">
           <h4 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
             🏆 Insignias de Bienestar
@@ -389,6 +394,11 @@ export const Profile: React.FC = () => {
               </span>
             </div>
 
+          </div>
+
+          {/* 🧠 Botón Dinámico de Mindset ubicado abajo de las insignias */}
+          <div className="pt-2 border-t border-slate-100">
+            <MindsetButton onNavigate={onNavigateToMindset} />
           </div>
         </div>
 

@@ -10,7 +10,7 @@ export const MindsetGuide: React.FC = () => {
           Psicología Deportiva
         </span>
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-          Mindset Guide: La Psicología en el Vóley 💡
+          Mente en Juego: La Psicología en el Vóley 💡
         </h1>
         <p className="text-xs sm:text-sm text-purple-100 opacity-90 leading-relaxed">
           Basado en las aportaciones de Mar Durán (psicóloga de la Selección Española de Vóley Playa, entrenadora, árbitro y exjugadora) y Ana Lizarraga.

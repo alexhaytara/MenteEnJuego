@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { MOOD_RESPONSES, type MoodType } from '../data/emotionsData'
+import { MindsetButton } from '../components/MindsetButton'
 
 // Importación de las imágenes PNG desde el Frontend
 import puntaImg from '../assets/punta.png'
@@ -14,6 +15,7 @@ interface HomeProps {
   userAge: number
   userPosition?: string
   onNavigateToRegister?: () => void
+  onNavigateToMindset?: () => void 
 }
 
 interface DayStatus {
@@ -35,7 +37,8 @@ export const Home: React.FC<HomeProps> = ({
   userName: initialName, 
   userAge: initialAge, 
   userPosition: initialPosition = 'Punta',
-  onNavigateToRegister 
+  onNavigateToRegister,
+  onNavigateToMindset 
 }) => {
   const [profileData, setProfileData] = useState({
     name: initialName,
@@ -44,6 +47,7 @@ export const Home: React.FC<HomeProps> = ({
   })
 
   const [hasRegisteredToday, setHasRegisteredToday] = useState<boolean>(true)
+  const [todayEmotion, setTodayEmotion] = useState<{ dominant: string; energy: string } | null>(null)
   const [weeklyDays, setWeeklyDays] = useState<DayStatus[]>([])
   const [loading, setLoading] = useState<boolean>(true)
 
@@ -113,22 +117,31 @@ export const Home: React.FC<HomeProps> = ({
           )
           .subscribe()
 
-        // 3. Verificar si registró HOY
+        // 3. Verificar si registró HOY y capturar su emoción/energía
         const startOfToday = new Date()
         startOfToday.setHours(0, 0, 0, 0)
 
         const endOfToday = new Date()
         endOfToday.setHours(23, 59, 59, 999)
 
-        const { data: todayLog } = await supabase
+        const { data: todayLogs } = await supabase
           .from('emotional_logs')
-          .select('id')
+          .select('dominant_emotion, energy_level, created_at')
           .eq('user_id', user.id)
           .gte('created_at', startOfToday.toISOString())
           .lte('created_at', endOfToday.toISOString())
-          .limit(1)
+          .order('created_at', { ascending: false })
 
-        setHasRegisteredToday(!!(todayLog && todayLog.length > 0))
+        if (todayLogs && todayLogs.length > 0) {
+          setHasRegisteredToday(true)
+          setTodayEmotion({
+            dominant: todayLogs[0].dominant_emotion,
+            energy: todayLogs[0].energy_level
+          })
+        } else {
+          setHasRegisteredToday(false)
+          setTodayEmotion(null)
+        }
 
         // 4. Obtener registros de los últimos 7 días
         const startDate = new Date()
@@ -198,7 +211,7 @@ export const Home: React.FC<HomeProps> = ({
     }
   }, [])
 
-  // Pantalla de Carga (Early return para evitar parpadeos visuales)
+  // Pantalla de Carga
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-3">
@@ -210,28 +223,43 @@ export const Home: React.FC<HomeProps> = ({
 
   const registeredDaysCount = weeklyDays.filter((d) => d.trained).length
 
+  // Detección de sobrecarga emocional (Estrés, ansiedad, fatiga, frustración, etc.)
+  const isHighIntensity = todayEmotion && (
+    ['estrés', 'ansiedad', 'fatiga', 'frustración', 'enojo', 'presión'].includes(todayEmotion.dominant.toLowerCase()) ||
+    todayEmotion.energy === 'Baja' || todayEmotion.energy === 'Muy Alta'
+  )
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       
       {/* Tarjeta de Perfil Personal */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col md:flex-row items-center gap-6">
-        <div className="w-20 h-20 bg-purple-100 text-purple-700 rounded-2xl flex items-center justify-center text-4xl font-bold shadow-inner flex-shrink-0">
-          🏐
-        </div>
+      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-6">
+        
+        <div className="flex items-center gap-6 w-full md:w-auto">
+          <div className="w-20 h-20 bg-purple-100 text-purple-700 rounded-2xl flex items-center justify-center text-4xl font-bold shadow-inner flex-shrink-0">
+            🏐
+          </div>
 
-        <div className="text-center md:text-left space-y-1">
-          <h2 className="text-2xl font-black text-slate-800">
-            {capitalizeWords(profileData.name)}
-          </h2>
-          <div className="flex flex-wrap justify-center md:justify-start gap-2 pt-1">
-            <span className="text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full border border-purple-100">
-              Sub-{profileData.age}
-            </span>
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-              Posición: {profileData.position}
-            </span>
+          <div className="text-center md:text-left space-y-1">
+            <h2 className="text-2xl font-black text-slate-800">
+              {capitalizeWords(profileData.name)}
+            </h2>
+            <div className="flex flex-wrap justify-center md:justify-start gap-2 pt-1">
+              <span className="text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full border border-purple-100">
+                Sub-{profileData.age}
+              </span>
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                Posición: {profileData.position}
+              </span>
+            </div>
           </div>
         </div>
+
+        {/* 🧠 TU BOTÓN DE MINDSET GUIDE CON CAMBIO DINÁMICO DE TONO */}
+        <div className="w-full md:w-auto">
+          <MindsetButton onNavigate={onNavigateToMindset} />
+        </div>
+
       </div>
 
       {/* Grid: Imagen de la Posición + Registro de la Semana */}

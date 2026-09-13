@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 interface MindsetButtonProps {
-  onNavigate: () => void
+  onNavigate?: () => void
 }
 
 export const MindsetButton: React.FC<MindsetButtonProps> = ({ onNavigate }) => {
@@ -97,7 +97,7 @@ export const MindsetButton: React.FC<MindsetButtonProps> = ({ onNavigate }) => {
   return (
     <button
       type="button"
-      onClick={onNavigate}
+      onClick={onNavigate || (() => {})}
       className={buttonStyles}
     >
       <span>{buttonText}</span>

@@ -47,7 +47,7 @@ export const Home: React.FC<HomeProps> = ({
   })
 
   const [hasRegisteredToday, setHasRegisteredToday] = useState<boolean>(true)
-  const [todayEmotion, setTodayEmotion] = useState<{ dominant: string; energy: string } | null>(null)
+  const [_todayEmotion, setTodayEmotion] = useState<{ dominant: string; energy: string } | null>(null)
   const [weeklyDays, setWeeklyDays] = useState<DayStatus[]>([])
   const [loading, setLoading] = useState<boolean>(true)
 
@@ -222,12 +222,6 @@ export const Home: React.FC<HomeProps> = ({
   }
 
   const registeredDaysCount = weeklyDays.filter((d) => d.trained).length
-
-  // Detección de sobrecarga emocional (Estrés, ansiedad, fatiga, frustración, etc.)
-  const isHighIntensity = todayEmotion && (
-    ['estrés', 'ansiedad', 'fatiga', 'frustración', 'enojo', 'presión'].includes(todayEmotion.dominant.toLowerCase()) ||
-    todayEmotion.energy === 'Baja' || todayEmotion.energy === 'Muy Alta'
-  )
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">

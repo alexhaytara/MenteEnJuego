@@ -8,7 +8,7 @@ import { Header } from './components/Header'
 import { EmotionalRegister } from './pages/EmotionalRegister'
 import { Workouts } from './pages/Workouts'
 import { Strategies } from './pages/Strategies'
-import { Messages } from './pages/Messages'
+import { MindsetGuide } from './pages/MindsetGuide'
 import { Resources } from './pages/Resources'
 import { Progress } from './pages/Progress'
 import { Profile } from './pages/Profile'
@@ -178,7 +178,7 @@ function App() {
           {currentTab === 'registro' && <EmotionalRegister />}
           {currentTab === 'entrenamientos' && <Workouts userPosition={userData.position} />}
           {currentTab === 'estrategias' && <Strategies />}
-          {currentTab === 'mensajes' && <Messages userName={userData.name} userPosition={userData.position} />}
+          {currentTab === 'guia' && <MindsetGuide />}
           {currentTab === 'recursos' && <Resources />}
           {currentTab === 'progreso' && <Progress 
             userName={userData.name} 

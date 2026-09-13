@@ -175,7 +175,13 @@ function App() {
             />
           )}
 
-          {currentTab === 'registro' && <EmotionalRegister />}
+          {currentTab === 'registro' && <EmotionalRegister 
+            onNavigateToMindset={() => {
+              window.scrollTo({ top: 0, });
+              setCurrentTab('guia');
+            }
+            }
+          />}
           {currentTab === 'entrenamientos' && <Workouts userPosition={userData.position} />}
           {currentTab === 'estrategias' && <Strategies />}
           {currentTab === 'guia' && <MindsetGuide />}

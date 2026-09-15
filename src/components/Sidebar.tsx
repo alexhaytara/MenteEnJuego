@@ -37,12 +37,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, use
   }, [])
 
   const menuItems = [
+    { id: 'guia', name: 'Guía y Recomendaciones', icon: '💡' },
     { id: 'inicio', name: 'Inicio', icon: '🏠' },
     { id: 'progreso', name: 'Mi progreso', icon: '📈' },
     { id: 'entrenamientos', name: 'Entrenamientos', icon: '🏋️' },
     { id: 'registro', name: 'Registro emocional', icon: '💜' },
     { id: 'estrategias', name: 'Estrategias', icon: '🧠' },
-    { id: 'guia', name: 'Guía y Recomendaciones', icon: '💡' },
     { id: 'recursos', name: 'Recursos', icon: '📚' },
     { id: 'perfil', name: 'Perfil', icon: '👤' },
   ]

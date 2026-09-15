@@ -27,7 +27,7 @@ function App() {
     age: 15,
     position: 'Punta',
   })
-  const [currentTab, setCurrentTab] = useState('inicio')
+  const [currentTab, setCurrentTab] = useState('guia')
   const [, setUser] = useState<User | null>(null)
   const [loadingSession, setLoadingSession] = useState(true)
 
@@ -97,7 +97,7 @@ function App() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setUserEmail('')
-    setCurrentTab('inicio')
+    setCurrentTab('guia')
     setScreen('login')
   }
 
@@ -185,7 +185,16 @@ function App() {
           />}
           {currentTab === 'entrenamientos' && <Workouts userPosition={userData.position} />}
           {currentTab === 'estrategias' && <Strategies />}
-          {currentTab === 'guia' && <MindsetGuide />}
+          {currentTab === 'guia' && <MindsetGuide
+            userName={userData.name}
+            onNavigateToSection={(section) => {
+              if (section === 'home') setCurrentTab('inicio')
+              if (section === 'emotional') setCurrentTab('registro') 
+              if (section === 'profile') setCurrentTab('perfil')
+              if (section === 'progress') setCurrentTab('progreso')
+              if (section === 'training') setCurrentTab('entrenamientos')
+            }}
+          />}
           {currentTab === 'recursos' && <Resources />}
           {currentTab === 'progreso' && <Progress 
             userName={userData.name} 
